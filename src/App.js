@@ -1,23 +1,33 @@
+import {useState} from 'react';
 import './App.css';
-
-import firebase from 'firebase/app';
-import 'firebase/firestore';
-import 'firebase/auth';
+import { GoogleAuthProvider, getAuth } from "firebase/auth";
+import { initializeApp } from "firebase/app";
+import { 
+  getFirestore, 
+  collection, 
+  query, 
+  orderBy,
+  serverTimestamp,
+  doc,
+  setDoc
+ } from 'firebase/firestore';
 
 import {useAuthState} from 'react-firebase-hooks/auth';
-import { useCollectionData } from 'react-firebase-hooks/firestore';
+import { useCollectionData } from 'react-firebase-hooks/firestore'; 
 
-firebase.initializeApp({
+const firebaseConfig = {
   apiKey: "AIzaSyDPO0wM-y3QTNHPCj1IbkRS-dvDcinSr_c",
   authDomain: "chat-app-f8a6e.firebaseapp.com",
   projectId: "chat-app-f8a6e",
   storageBucket: "chat-app-f8a6e.appspot.com",
   messagingSenderId: "514039786914",
-  appId: "1:514039786914:web:feaf2bf19bb8f3af6a56fb" 
-})
+  appId: "1:514039786914:web:feaf2bf19bb8f3af6a56fb"
+};
 
-const auth = firebase.auth();
-const firestore = firebase.firestore();
+const app = initializeApp(firebaseConfig);
+
+const db = getFirestore();
+const auth = getAuth();
 
 function App() {
   return (
@@ -26,7 +36,7 @@ function App() {
       
       </header>
       <section>
-        { user ? <ChatRoom/> : <SignIn/>}
+         <ChatRoom/>
       </section>
     </div>
   );
@@ -34,7 +44,7 @@ function App() {
 
 function SignIn() {
   const signInWithGoogle = () => {
-    const provider = new firebase.auth.GoogleAuthProvider();
+    const provider = new GoogleAuthProvider();
     auth.signInWithPopup(provider);
   }
 
@@ -43,9 +53,59 @@ function SignIn() {
   )
 }
 
-function SignOut() {
-  return auth.currentUser && (
-    <button onClick={() => auth.signOut()}>Sign Out</button>
+// function SignOut() {
+//   return auth.currentUser && (
+//     <button onClick={() => auth.signOut()}>Sign Out</button>
+//   )
+// }
+
+function ChatRoom() {
+  // reference a firestore collection.
+  const messagesRef = collection(db, 'messages');
+  // query documents in a collection.
+  const q = query(messagesRef, orderBy('createdAt'));
+  // listen to data with hook.
+  const [messages] = useCollectionData(q, {idField: 'id'});
+  const [formValue, setFormValue] = useState("")
+
+  const sendMessage = async(e) => {
+    e.preventDefault();
+
+    // const {uid, photoURL} = auth.currentUser;
+
+    await setDoc(doc(db, 'messages', Math.random().toString()), 
+    {
+      text: formValue,
+      createdAt: serverTimestamp(),
+    })
+    setFormValue('');
+  }
+  return (
+    <>
+    <div>
+      {messages && messages.map( msg => <ChatMessage message={msg}/>)}
+    </div>
+    <div>
+      <form onSubmit={sendMessage}>
+        <input type="text" value={formValue} onChange={(e) => setFormValue(e.target.value)}/>
+        <button type="submit">🎃</button>
+      </form>
+    </div>
+    </>
+  )
+}
+
+function ChatMessage(props) {
+  const { text, uid, photoURL } = props.message;
+
+  // const messageClass = uid === auth.currentUser.id ? 'sent' : 'recieved';
+
+
+  return (
+    <div>
+      <img src={photoURL} alt=""/>
+      <p>{text}</p>
+    </div>
   )
 }
 
